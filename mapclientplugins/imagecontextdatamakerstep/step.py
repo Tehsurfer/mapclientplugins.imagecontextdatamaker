@@ -7,6 +7,10 @@ import json
 import imghdr
 import imagesize
 
+import cv2
+import io
+from PIL import Image
+
 from PySide import QtGui
 
 from opencmiss.zinc.context import Context
@@ -29,6 +33,40 @@ def alphanum_key(s):
         "z23a" -> ["z", 23, "a"]
     """
     return [try_int(c) for c in re.split('([0-9]+)', s)]
+
+
+def frameFromVideo(filename):
+    cap = cv2.VideoCapture(filename)
+    length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    imageList = list()
+    while not cap.isOpened():
+        cap = cv2.VideoCapture(filename)
+        cv2.waitKey(1000)
+        print("Wait for the header")
+    posFrame = cap.get(cv2.cv2.CAP_PROP_POS_FRAMES)
+    count = 1
+    while True:
+        flag, frameTemp = cap.read()
+        if flag and count != length:
+            frame = cv2.cvtColor(frameTemp, cv2.COLOR_BGR2RGB)
+            if count == 1:
+                imageDimension = [frame.shape[1], frame.shape[0]]
+            posFrame = cap.get(cv2.cv2.CAP_PROP_POS_FRAMES)
+            imArray = Image.fromarray(frame)
+            image = saveFrameInMemory(imArray)
+            imageList.append(image)
+        else:
+            break
+        count+=1
+    imageList.pop()
+    return imageList, imageDimension
+
+
+def saveFrameInMemory(image):
+    with io.BytesIO() as output:
+        image.save(output, format="jpeg")
+        images = output.getvalue()
+    return images
 
 
 class ImageContextData(object):
@@ -73,10 +111,13 @@ class ImageContextDataMakerStep(WorkflowStepMountPoint):
                       'http://physiomeproject.org/workflow/1.0/rdf-schema#image_context_data'))
         self.addPort(('http://physiomeproject.org/workflow/1.0/rdf-schema#port',
                       'http://physiomeproject.org/workflow/1.0/rdf-schema#uses',
+                      'http://physiomeproject.org/workflow/1.0/rdf-schema#file_location'))
+        self.addPort(('http://physiomeproject.org/workflow/1.0/rdf-schema#port',
+                      'http://physiomeproject.org/workflow/1.0/rdf-schema#uses',
                       'http://physiomeproject.org/workflow/1.0/rdf-schema#images'))
         # Port data:
         self._portData0 = None # http://physiomeproject.org/workflow/1.0/rdf-schema#image_context_data
-        self._portData1 = None # http://physiomeproject.org/workflow/1.0/rdf-schema#images
+        self._portData1 = None
         # Config:
         self._config = {'identifier': '', 'frames_per_second': 30}
 
@@ -89,10 +130,17 @@ class ImageContextDataMakerStep(WorkflowStepMountPoint):
         # Put your execute step code here before calling the '_doneExecution' method.
         context = Context('images')
         region = create_model(context)
-        image_file_names = self._portData1.image_files()
         frames_per_second = self._config['frames_per_second']
-        image_dimensions, _ = _load_images(image_file_names, frames_per_second, region)
-        image_context_data = ImageContextData(context, frames_per_second, image_file_names, image_dimensions)
+
+        if str(type(self._portData1)).split('.')[-1].split("'")[0] == 'ImageSourceData':
+            image_file_names = self._portData1.image_files()
+            image_dimensions, _ = _load_images(image_file_names, frames_per_second, region)
+            image_context_data = ImageContextData(context, frames_per_second, image_file_names, image_dimensions)
+        else:
+            image_frames, image_dim = frameFromVideo(self._portData1)
+            image_dimensions, _ = _get_images(image_frames, frames_per_second, region, image_dim)
+            image_context_data = ImageContextData(context, frames_per_second, image_frames, image_dimensions)
+
         self._portData0 = image_context_data
         self._doneExecution()
 
@@ -105,7 +153,8 @@ class ImageContextDataMakerStep(WorkflowStepMountPoint):
         :param index: Index of the port to return.
         :param dataIn: The data to set for the port at the given index.
         """
-        self._portData1 = dataIn # http://physiomeproject.org/workflow/1.0/rdf-schema#images
+
+        self._portData1 = dataIn
 
     def getPortData(self, index):
         """
@@ -215,3 +264,23 @@ def _load_images(images, frames_per_second, region):
 
     return image_dimensions, image_based_material
 
+
+def _get_images(images, frames_per_second, region, image_dimension):
+    field_module = region.getFieldmodule()
+    frame_count = len(images)
+    if frame_count > 0:
+        # Assume all images have the same dimensions.
+        width, height = image_dimension
+        if width != -1 or height != -1:
+            cache = field_module.createFieldcache()
+            scale_field = field_module.findFieldByName('scale')
+            scale_field.assignReal(cache, [width, height, 1.0])
+            duration = frame_count / frames_per_second
+            duration_field = field_module.findFieldByName('duration')
+            duration_field.assignReal(cache, duration)
+            image_dimensions = [width, height]
+    image_field = create_volume_image_field(field_module, images)
+    image_based_material = create_material_using_image_field(region, image_field)
+    image_based_material.setName('images')
+    image_based_material.setManaged(True)
+    return image_dimensions, image_based_material
