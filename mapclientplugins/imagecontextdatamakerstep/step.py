@@ -4,7 +4,6 @@ MAP Client Plugin Step
 """
 import re
 import json
-import imghdr
 import imagesize
 
 import cv2
@@ -16,6 +15,7 @@ from PySide import QtGui
 from opencmiss.zinc.context import Context
 from opencmiss.utils.zinc import create_finite_element_field, create_square_2d_finite_element, \
     create_volume_image_field, create_material_using_image_field
+from opencmiss.zincwidgets.basesceneviewerwidget import BaseSceneviewerWidget
 
 from mapclient.mountpoints.workflowstep import WorkflowStepMountPoint
 from mapclientplugins.imagecontextdatamakerstep.configuredialog import ConfigureDialog
@@ -73,12 +73,17 @@ class ImageContextData(object):
 
     def __init__(self, context, frames_per_second, image_file_names, image_dimensions):
         self._context = context
+        self._shareable_widget = BaseSceneviewerWidget()
+        self._shareable_widget.set_context(context)
         self._frames_per_second = frames_per_second
         self._image_file_names = image_file_names
         self._image_dimensions = image_dimensions
 
     def get_context(self):
         return self._context
+
+    def get_shareable_open_gl_widget(self):
+        return self._shareable_widget
 
     def get_frames_per_second(self):
         return self._frames_per_second
@@ -115,9 +120,14 @@ class ImageContextDataMakerStep(WorkflowStepMountPoint):
         self.addPort(('http://physiomeproject.org/workflow/1.0/rdf-schema#port',
                       'http://physiomeproject.org/workflow/1.0/rdf-schema#uses',
                       'http://physiomeproject.org/workflow/1.0/rdf-schema#images'))
+        self.addPort(('http://physiomeproject.org/workflow/1.0/rdf-schema#port',
+                      'http://physiomeproject.org/workflow/1.0/rdf-schema#provides',
+                      'http://physiomeproject.org/workflow/1.0/rdf-schema#2d_image_dimension'))
         # Port data:
-        self._portData0 = None # http://physiomeproject.org/workflow/1.0/rdf-schema#image_context_data
-        self._portData1 = None
+        self._portData0 = None  # http://physiomeproject.org/workflow/1.0/rdf-schema#image_context_data
+        self._portData1 = None  # http://physiomeproject.org/workflow/1.0/rdf-schema#file_location
+        self._portData2 = None  # http://physiomeproject.org/workflow/1.0/rdf-schema#images
+        self._portData3 = None  # http://physiomeproject.org/workflow/1.0/rdf-schema#2d_image_dimension
         # Config:
         self._config = {'identifier': '', 'frames_per_second': 30}
 
@@ -132,16 +142,19 @@ class ImageContextDataMakerStep(WorkflowStepMountPoint):
         region = create_model(context)
         frames_per_second = self._config['frames_per_second']
 
-        if str(type(self._portData1)).split('.')[-1].split("'")[0] == 'ImageSourceData':
-            image_file_names = self._portData1.image_files()
+        if self._portData2 is not None:
+            image_file_names = self._portData2.image_files()
             image_dimensions, _ = _load_images(image_file_names, frames_per_second, region)
             image_context_data = ImageContextData(context, frames_per_second, image_file_names, image_dimensions)
-        else:
+        elif self._portData1 is not None:
             image_frames, image_dim = frameFromVideo(self._portData1)
             image_dimensions, _ = _get_images(image_frames, frames_per_second, region, image_dim)
             image_context_data = ImageContextData(context, frames_per_second, image_frames, image_dimensions)
+        else:
+            Exception('One of these ports should have data connected.')
 
         self._portData0 = image_context_data
+        self._portData3 = image_dimensions
         self._doneExecution()
 
     def setPortData(self, index, dataIn):
@@ -153,8 +166,10 @@ class ImageContextDataMakerStep(WorkflowStepMountPoint):
         :param index: Index of the port to return.
         :param dataIn: The data to set for the port at the given index.
         """
-
-        self._portData1 = dataIn
+        if index == 1:
+            self._portData1 = dataIn  # http://physiomeproject.org/workflow/1.0/rdf-schema#file_location
+        elif index == 2:
+            self._portData2 = dataIn  # http://physiomeproject.org/workflow/1.0/rdf-schema#images
 
     def getPortData(self, index):
         """
@@ -164,7 +179,11 @@ class ImageContextDataMakerStep(WorkflowStepMountPoint):
 
         :param index: Index of the port to return.
         """
-        return self._portData0 # http://physiomeproject.org/workflow/1.0/rdf-schema#image_context_data
+        port_data = self._portData0  # image_context_data
+        if index == 3:
+            port_data = self._portData3  # 2d_image_dimension
+
+        return port_data
 
     def configure(self):
         """
