@@ -59,6 +59,7 @@ def frameFromVideo(filename):
             break
         count+=1
     imageList.pop()
+    cap.release()
     return imageList, imageDimension
 
 
