@@ -38,6 +38,7 @@ def alphanum_key(s):
 def frameFromVideo(filename):
     cap = cv2.VideoCapture(filename)
     length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    fps = cap.get(cv2.CAP_PROP_FPS)
     imageList = list()
     while not cap.isOpened():
         cap = cv2.VideoCapture(filename)
@@ -60,7 +61,7 @@ def frameFromVideo(filename):
         count+=1
     imageList.pop()
     cap.release()
-    return imageList, imageDimension
+    return imageList, imageDimension, fps
 
 
 def saveFrameInMemory(image):
@@ -141,6 +142,7 @@ class ImageContextDataMakerStep(WorkflowStepMountPoint):
         # Put your execute step code here before calling the '_doneExecution' method.
         context = Context('images')
         region = create_model(context)
+        # Must put a note on the config that this doesn't apply to video feeds.
         frames_per_second = self._config['frames_per_second']
 
         if self._portData2 is not None:
@@ -148,7 +150,7 @@ class ImageContextDataMakerStep(WorkflowStepMountPoint):
             image_dimensions, _ = _load_images(image_file_names, frames_per_second, region)
             image_context_data = ImageContextData(context, frames_per_second, image_file_names, image_dimensions)
         elif self._portData1 is not None:
-            image_frames, image_dim = frameFromVideo(self._portData1)
+            image_frames, image_dim, frames_per_second = frameFromVideo(self._portData1)
             image_dimensions, _ = _get_images(image_frames, frames_per_second, region, image_dim)
             image_context_data = ImageContextData(context, frames_per_second, image_frames, image_dimensions)
         else:
