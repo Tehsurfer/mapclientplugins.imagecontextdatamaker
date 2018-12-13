@@ -289,6 +289,7 @@ def _load_images(images, frames_per_second, region):
 
 
 def _get_images(images, frames_per_second, region, image_dimension):
+    image_dimensions = [-1, -1]
     field_module = region.getFieldmodule()
     frame_count = len(images)
     if frame_count > 0:
