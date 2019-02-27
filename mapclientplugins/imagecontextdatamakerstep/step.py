@@ -86,6 +86,32 @@ class ReadVideo(object):
         self.timer.timeout.connect(self.playVideoFrame)
         self.timer.start(1000 / self._fps)
 
+    def captureVideo(self, filename):
+        if not self.cap:
+            self.cap = cv2.VideoCapture(filename)
+        self._fps = int(self.cap.get(cv2.CAP_PROP_FPS))
+        self._totalFrame = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        if self.cap.isOpened():
+            flag, capture = self.cap.read()
+            self.loadImage(capture)
+
+    def loadImage(self, capture2):
+        width = capture2.shape[1]
+        height = capture2.shape[0]
+        size = capture2.size
+        itemsize = capture2.itemsize
+        if not self._imageField:
+            region = self._context.getDefaultRegion()
+            fieldModule = region.getFieldmodule()
+            self._imageField = fieldModule.createFieldImage()
+            self._imageField.setSizeInPixels([width, height, 1])
+            self._imageField.setPixelFormat(self._imageField.PIXEL_FORMAT_BGR)
+            self._imageField.setBuffer(capture2.tobytes())
+            materialmodule = self._context.getMaterialmodule()
+            self._material = materialmodule.createMaterial()
+            self._material.setTextureField(1, self._imageField)
+        return [width, height]
+
 
 class ImageContextData(object):
 
