@@ -86,6 +86,15 @@ class ReadVideo(object):
         self.timer.timeout.connect(self.playVideoFrame)
         self.timer.start(1000 / self._fps)
 
+    def playVideoFrame(self):
+        if self.cap.isOpened():
+            flag, capture = self.cap.read()
+            if flag is False:
+                self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                flag, capture = self.cap.read()
+            self._imageField.setBuffer(capture.tobytes())
+            self._currentFrame = self._currentFrame + 1
+
     def captureVideo(self, filename):
         if not self.cap:
             self.cap = cv2.VideoCapture(filename)
