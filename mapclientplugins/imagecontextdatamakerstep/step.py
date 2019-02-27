@@ -10,11 +10,11 @@ import cv2
 import io
 from PIL import Image
 
-from PySide import QtGui
+from PySide import QtGui, QtCore
 
 from opencmiss.zinc.context import Context
-from opencmiss.utils.zinc import create_finite_element_field, create_square_2d_finite_element, \
-    create_volume_image_field, create_material_using_image_field
+from opencmiss.utils.zinc import createFiniteElementField, createSquare2DFiniteElement,\
+    createVolumeImageField, createMaterialUsingImageField
 from opencmiss.zincwidgets.basesceneviewerwidget import BaseSceneviewerWidget
 
 from mapclient.mountpoints.workflowstep import WorkflowStepMountPoint
@@ -69,6 +69,22 @@ def saveFrameInMemory(image):
         image.save(output, format="jpeg")
         images = output.getvalue()
     return images
+
+
+class ReadVideo(object):
+
+    def __init__(self, context, data):
+        self._context = context
+        self._imageField = None
+        self._fps = 0
+        self._totalFrame = 0
+        self._currentFrame = 0
+        self.cap = None
+        self._material = None
+        self.captureVideo(data)
+        self.timer = QtCore.QTimer(self)
+        self.timer.timeout.connect(self.playVideoFrame)
+        self.timer.start(1000 / self._fps)
 
 
 class ImageContextData(object):
@@ -150,6 +166,7 @@ class ImageContextDataMakerStep(WorkflowStepMountPoint):
             image_dimensions, _ = _load_images(image_file_names, frames_per_second, region)
             image_context_data = ImageContextData(context, frames_per_second, image_file_names, image_dimensions)
         elif self._portData1 is not None:
+            image_dimensions = ReadVideo(context, self._portData1)
             image_frames, image_dim, frames_per_second = frameFromVideo(self._portData1)
             image_dimensions, _ = _get_images(image_frames, frames_per_second, region, image_dim)
             image_context_data = ImageContextData(context, frames_per_second, image_frames, image_dimensions)
@@ -246,7 +263,7 @@ class ImageContextDataMakerStep(WorkflowStepMountPoint):
 def create_model(context):
     default_region = context.getDefaultRegion()
     region = default_region.createChild('images')
-    coordinate_field = create_finite_element_field(region)
+    coordinate_field = createFiniteElementField(region)
     field_module = region.getFieldmodule()
     scale_field = field_module.createFieldConstant([2, 3, 1])
     scale_field.setName('scale')
@@ -258,7 +275,7 @@ def create_model(context):
     scaled_coordinate_field = field_module.createFieldAdd(scaled_coordinate_field, offset_field)
     scaled_coordinate_field.setManaged(True)
     scaled_coordinate_field.setName('scaled_coordinates')
-    create_square_2d_finite_element(field_module, coordinate_field,
+    createSquare2DFiniteElement(field_module, coordinate_field,
                                     [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [1.0, 1.0, 0.0]])
 
     return region
@@ -280,8 +297,8 @@ def _load_images(images, frames_per_second, region):
             duration_field = field_module.findFieldByName('duration')
             duration_field.assignReal(cache, duration)
             image_dimensions = [width, height]
-        image_field = create_volume_image_field(field_module, images)
-        image_based_material = create_material_using_image_field(region, image_field)
+        image_field = createVolumeImageField(field_module, images)
+        image_based_material = createMaterialUsingImageField(region, image_field)
         image_based_material.setName('images')
         image_based_material.setManaged(True)
 
@@ -303,8 +320,8 @@ def _get_images(images, frames_per_second, region, image_dimension):
             duration_field = field_module.findFieldByName('duration')
             duration_field.assignReal(cache, duration)
             image_dimensions = [width, height]
-    image_field = create_volume_image_field(field_module, images)
-    image_based_material = create_material_using_image_field(region, image_field)
+    image_field = createVolumeImageField(field_module, images)
+    image_based_material = createMaterialUsingImageField(region, image_field)
     image_based_material.setName('images')
     image_based_material.setManaged(True)
     return image_dimensions, image_based_material
