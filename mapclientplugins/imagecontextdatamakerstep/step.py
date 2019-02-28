@@ -82,7 +82,7 @@ class ReadVideo(object):
         self.cap = None
         self._material = None
         self.captureVideo(data)
-        self.timer = QtCore.QTimer(self)
+        self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.playVideoFrame)
         self.timer.start(1000 / self._fps)
 
@@ -124,12 +124,13 @@ class ReadVideo(object):
 
 class ImageContextData(object):
 
-    def __init__(self, context, frames_per_second, image_file_names, image_dimensions):
+    # def __init__(self, context, frames_per_second, image_file_names, image_dimensions):
+    def __init__(self, context, frames_per_second, image_dimensions):
         self._context = context
         self._shareable_widget = BaseSceneviewerWidget()
         self._shareable_widget.set_context(context)
         self._frames_per_second = frames_per_second
-        self._image_file_names = image_file_names
+        # self._image_file_names = image_file_names
         self._image_dimensions = image_dimensions
 
     def get_context(self):
@@ -141,11 +142,11 @@ class ImageContextData(object):
     def get_frames_per_second(self):
         return self._frames_per_second
 
-    def get_frame_count(self):
-        return len(self._image_file_names)
-
-    def get_image_file_names(self):
-        return self._image_file_names
+    # def get_frame_count(self):
+    #     return len(self._image_file_names)
+    #
+    # def get_image_file_names(self):
+    #     return self._image_file_names
 
     def get_image_dimensions(self):
         return self._image_dimensions
@@ -202,9 +203,10 @@ class ImageContextDataMakerStep(WorkflowStepMountPoint):
             image_context_data = ImageContextData(context, frames_per_second, image_file_names, image_dimensions)
         elif self._portData1 is not None:
             image_dimensions = ReadVideo(context, self._portData1)
-            image_frames, image_dim, frames_per_second = frameFromVideo(self._portData1)
-            image_dimensions, _ = _get_images(image_frames, frames_per_second, region, image_dim)
-            image_context_data = ImageContextData(context, frames_per_second, image_frames, image_dimensions)
+            # image_frames, image_dim, frames_per_second = frameFromVideo(self._portData1)
+            # image_dimensions, _ = _get_images(image_frames, frames_per_second, region, image_dim)
+            # image_context_data = ImageContextData(context, frames_per_second, image_frames, image_dimensions)
+            image_context_data = ImageContextData(context, frames_per_second, image_dimensions)
         else:
             Exception('One of these ports should have data connected.')
 
