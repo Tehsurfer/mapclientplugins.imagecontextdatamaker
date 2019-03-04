@@ -133,63 +133,63 @@ def alphanum_key(s):
 #         return [width, height]
 
 
-class FrameContextData(object):
-
-    def __init__(self, context, video_file_name, frames_per_second, framecount, image_dimensions):
-        self._context = context
-        self._shareable_widget = BaseSceneviewerWidget()
-        self._shareable_widget.set_context(context)
-        self._frames_per_second = frames_per_second
-        self._video_file_name = video_file_name
-        self._image_dimensions = image_dimensions
-        self._framecount = framecount
-
-    def get_context(self):
-        return self._context
-
-    def get_shareable_open_gl_widget(self):
-        return self._shareable_widget
-
-    def get_frames_per_second(self):
-        return self._frames_per_second
-
-    def get_frame_count(self):
-        return self._framecount
-
-    def get_video_file_name(self):
-        return self._video_file_name
-
-    def get_image_dimensions(self):
-        return self._image_dimensions
-
-
-class ImageContextData(object):
-
-    def __init__(self, context, image_file_names, image_dimensions, frames_per_second):
-        self._context = context
-        self._shareable_widget = BaseSceneviewerWidget()
-        self._shareable_widget.set_context(context)
-        self._image_file_names = image_file_names
-        self._image_dimensions = image_dimensions
-        self._frames_per_second = frames_per_second
-
-    def get_context(self):
-        return self._context
-
-    def get_shareable_open_gl_widget(self):
-        return self._shareable_widget
-
-    def get_frames_per_second(self):
-        return self._frames_per_second
-
-    def get_frame_count(self):
-        return len(self._image_file_names)
-
-    def get_image_file_names(self):
-        return self._image_file_names
-
-    def get_image_dimensions(self):
-        return self._image_dimensions
+# class FrameContextData(object):
+#
+#     def __init__(self, context, video_file_name, frames_per_second, framecount, image_dimensions):
+#         self._context = context
+#         self._shareable_widget = BaseSceneviewerWidget()
+#         self._shareable_widget.set_context(context)
+#         self._frames_per_second = frames_per_second
+#         self._video_file_name = video_file_name
+#         self._image_dimensions = image_dimensions
+#         self._framecount = framecount
+#
+#     def get_context(self):
+#         return self._context
+#
+#     def get_shareable_open_gl_widget(self):
+#         return self._shareable_widget
+#
+#     def get_frames_per_second(self):
+#         return self._frames_per_second
+#
+#     def get_frame_count(self):
+#         return self._framecount
+#
+#     def get_video_file_name(self):
+#         return self._video_file_name
+#
+#     def get_image_dimensions(self):
+#         return self._image_dimensions
+#
+#
+# class ImageContextData(object):
+#
+#     def __init__(self, context, image_file_names, image_dimensions, frames_per_second):
+#         self._context = context
+#         self._shareable_widget = BaseSceneviewerWidget()
+#         self._shareable_widget.set_context(context)
+#         self._image_file_names = image_file_names
+#         self._image_dimensions = image_dimensions
+#         self._frames_per_second = frames_per_second
+#
+#     def get_context(self):
+#         return self._context
+#
+#     def get_shareable_open_gl_widget(self):
+#         return self._shareable_widget
+#
+#     def get_frames_per_second(self):
+#         return self._frames_per_second
+#
+#     def get_frame_count(self):
+#         return len(self._image_file_names)
+#
+#     def get_image_file_names(self):
+#         return self._image_file_names
+#
+#     def get_image_dimensions(self):
+#         return self._image_dimensions
 
 
 class ImageContextDataMakerStep(WorkflowStepMountPoint):
