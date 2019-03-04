@@ -35,103 +35,114 @@ def alphanum_key(s):
     return [try_int(c) for c in re.split('([0-9]+)', s)]
 
 
-def frameFromVideo(filename):
-    cap = cv2.VideoCapture(filename)
-    length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    imageList = list()
-    while not cap.isOpened():
-        cap = cv2.VideoCapture(filename)
-        cv2.waitKey(1000)
-        print("Wait for the header")
-    posFrame = cap.get(cv2.cv2.CAP_PROP_POS_FRAMES)
-    count = 1
-    while True:
-        flag, frameTemp = cap.read()
-        if flag and count != length:
-            frame = cv2.cvtColor(frameTemp, cv2.COLOR_BGR2RGB)
-            if count == 1:
-                imageDimension = [frame.shape[1], frame.shape[0]]
-            posFrame = cap.get(cv2.cv2.CAP_PROP_POS_FRAMES)
-            imArray = Image.fromarray(frame)
-            image = saveFrameInMemory(imArray)
-            imageList.append(image)
-        else:
-            break
-        count+=1
-    imageList.pop()
-    cap.release()
-    return imageList, imageDimension, fps
+# def frameFromVideo(filename):
+#     cap = cv2.VideoCapture(filename)
+#     length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+#     fps = cap.get(cv2.CAP_PROP_FPS)
+#     imageList = list()
+#     while not cap.isOpened():
+#         cap = cv2.VideoCapture(filename)
+#         cv2.waitKey(1000)
+#         print("Wait for the header")
+#     posFrame = cap.get(cv2.cv2.CAP_PROP_POS_FRAMES)
+#     count = 1
+#     while True:
+#         flag, frameTemp = cap.read()
+#         if flag and count != length:
+#             frame = cv2.cvtColor(frameTemp, cv2.COLOR_BGR2RGB)
+#             if count == 1:
+#                 imageDimension = [frame.shape[1], frame.shape[0]]
+#             posFrame = cap.get(cv2.cv2.CAP_PROP_POS_FRAMES)
+#             imArray = Image.fromarray(frame)
+#             image = saveFrameInMemory(imArray)
+#             imageList.append(image)
+#         else:
+#             break
+#         count+=1
+#     imageList.pop()
+#     cap.release()
+#     return imageList, imageDimension, fps
+#
+#
+# def saveFrameInMemory(image):
+#     with io.BytesIO() as output:
+#         image.save(output, format="jpeg")
+#         images = output.getvalue()
+#     return images
+#
+#
+# def _getVideoInfo(filename):
+#     cap = cv2.VideoCapture(filename)
+#     fps = int(cap.get(cv2.CAP_PROP_FPS))
+#     totalframe = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+#     if cap.isOpened():
+#         flag, capture = cap.read()
+#         width = capture.shape[1]
+#         height = capture.shape[0]
+#         return [width, height], fps, totalframe
+#
+#
+# class ReadVideo(object):
+#
+#     def __init__(self, context, data):
+#         self._context = context
+#         self._imageField = None
+#         self._fps = 0
+#         self._totalFrame = 0
+#         self._currentFrame = 0
+#         self.cap = None
+#         self._material = None
+#         self.captureVideo(data)
+#         # self.timer = QtCore.QTimer()
+#         # self.timer.timeout.connect(self.playVideoFrame)
+#         # self.timer.start(1000 / self._fps)
+#
+#     def playVideoFrame(self):
+#         if self.cap.isOpened():
+#             flag, capture = self.cap.read()
+#             if flag is False:
+#                 self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+#                 flag, capture = self.cap.read()
+#             self._imageField.setBuffer(capture.tobytes())
+#             self._currentFrame = self._currentFrame + 1
+#
+#     def captureVideo(self, filename):
+#         if not self.cap:
+#             self.cap = cv2.VideoCapture(filename)
+#         self._fps = int(self.cap.get(cv2.CAP_PROP_FPS))
+#         self._totalFrame = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+#         if self.cap.isOpened():
+#             flag, capture = self.cap.read()
+#             self.loadImage(capture)
+#
+#     def loadImage(self, capture2):
+#         width = capture2.shape[1]
+#         height = capture2.shape[0]
+#         size = capture2.size
+#         itemsize = capture2.itemsize
+#         if not self._imageField:
+#             region = self._context.getDefaultRegion()
+#             fieldModule = region.getFieldmodule()
+#             self._imageField = fieldModule.createFieldImage()
+#             self._imageField.setSizeInPixels([width, height, 1])
+#             self._imageField.setPixelFormat(self._imageField.PIXEL_FORMAT_BGR)
+#             self._imageField.setBuffer(capture2.tobytes())
+#             materialmodule = self._context.getMaterialmodule()
+#             self._material = materialmodule.createMaterial()
+#             self._material.setTextureField(1, self._imageField)
+#         return [width, height]
 
 
-def saveFrameInMemory(image):
-    with io.BytesIO() as output:
-        image.save(output, format="jpeg")
-        images = output.getvalue()
-    return images
+class FrameContextData(object):
 
-
-class ReadVideo(object):
-
-    def __init__(self, context, data):
-        self._context = context
-        self._imageField = None
-        self._fps = 0
-        self._totalFrame = 0
-        self._currentFrame = 0
-        self.cap = None
-        self._material = None
-        self.captureVideo(data)
-        self.timer = QtCore.QTimer()
-        self.timer.timeout.connect(self.playVideoFrame)
-        self.timer.start(1000 / self._fps)
-
-    def playVideoFrame(self):
-        if self.cap.isOpened():
-            flag, capture = self.cap.read()
-            if flag is False:
-                self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                flag, capture = self.cap.read()
-            self._imageField.setBuffer(capture.tobytes())
-            self._currentFrame = self._currentFrame + 1
-
-    def captureVideo(self, filename):
-        if not self.cap:
-            self.cap = cv2.VideoCapture(filename)
-        self._fps = int(self.cap.get(cv2.CAP_PROP_FPS))
-        self._totalFrame = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        if self.cap.isOpened():
-            flag, capture = self.cap.read()
-            self.loadImage(capture)
-
-    def loadImage(self, capture2):
-        width = capture2.shape[1]
-        height = capture2.shape[0]
-        size = capture2.size
-        itemsize = capture2.itemsize
-        if not self._imageField:
-            region = self._context.getDefaultRegion()
-            fieldModule = region.getFieldmodule()
-            self._imageField = fieldModule.createFieldImage()
-            self._imageField.setSizeInPixels([width, height, 1])
-            self._imageField.setPixelFormat(self._imageField.PIXEL_FORMAT_BGR)
-            self._imageField.setBuffer(capture2.tobytes())
-            materialmodule = self._context.getMaterialmodule()
-            self._material = materialmodule.createMaterial()
-            self._material.setTextureField(1, self._imageField)
-        return [width, height]
-
-
-class ImageContextData(object):
-
-    # def __init__(self, context, frames_per_second, image_file_names, image_dimensions):
-    def __init__(self, context, frames_per_second, image_dimensions):
+    def __init__(self, context, video_file_name, frames_per_second, framecount, image_dimensions):
         self._context = context
         self._shareable_widget = BaseSceneviewerWidget()
         self._shareable_widget.set_context(context)
         self._frames_per_second = frames_per_second
-        # self._image_file_names = image_file_names
+        self._video_file_name = video_file_name
         self._image_dimensions = image_dimensions
+        self._framecount = framecount
 
     def get_context(self):
         return self._context
@@ -142,11 +153,40 @@ class ImageContextData(object):
     def get_frames_per_second(self):
         return self._frames_per_second
 
-    # def get_frame_count(self):
-    #     return len(self._image_file_names)
-    #
-    # def get_image_file_names(self):
-    #     return self._image_file_names
+    def get_frame_count(self):
+        return self._framecount
+
+    def get_video_file_name(self):
+        return self._video_file_name
+
+    def get_image_dimensions(self):
+        return self._image_dimensions
+
+
+class ImageContextData(object):
+
+    def __init__(self, context, image_file_names, image_dimensions, frames_per_second):
+        self._context = context
+        self._shareable_widget = BaseSceneviewerWidget()
+        self._shareable_widget.set_context(context)
+        self._image_file_names = image_file_names
+        self._image_dimensions = image_dimensions
+        self._frames_per_second = frames_per_second
+
+    def get_context(self):
+        return self._context
+
+    def get_shareable_open_gl_widget(self):
+        return self._shareable_widget
+
+    def get_frames_per_second(self):
+        return self._frames_per_second
+
+    def get_frame_count(self):
+        return len(self._image_file_names)
+
+    def get_image_file_names(self):
+        return self._image_file_names
 
     def get_image_dimensions(self):
         return self._image_dimensions
@@ -163,20 +203,20 @@ class ImageContextDataMakerStep(WorkflowStepMountPoint):
         self._configured = False # A step cannot be executed until it has been configured.
         self._category = 'Utility'
         # Add any other initialisation code here:
-        self._icon =  QtGui.QImage(':/imagecontextdatamakerstep/images/utility.png')
+        self._icon = QtGui.QImage(':/imagecontextdatamakerstep/images/utility.png')
         # Ports:
         self.addPort(('http://physiomeproject.org/workflow/1.0/rdf-schema#port',
                       'http://physiomeproject.org/workflow/1.0/rdf-schema#provides',
                       'http://physiomeproject.org/workflow/1.0/rdf-schema#image_context_data'))
-        self.addPort(('http://physiomeproject.org/workflow/1.0/rdf-schema#port',
-                      'http://physiomeproject.org/workflow/1.0/rdf-schema#uses',
-                      'http://physiomeproject.org/workflow/1.0/rdf-schema#file_location'))
-        self.addPort(('http://physiomeproject.org/workflow/1.0/rdf-schema#port',
-                      'http://physiomeproject.org/workflow/1.0/rdf-schema#uses',
-                      'http://physiomeproject.org/workflow/1.0/rdf-schema#images'))
-        self.addPort(('http://physiomeproject.org/workflow/1.0/rdf-schema#port',
-                      'http://physiomeproject.org/workflow/1.0/rdf-schema#provides',
-                      'http://physiomeproject.org/workflow/1.0/rdf-schema#2d_image_dimension'))
+        # self.addPort(('http://physiomeproject.org/workflow/1.0/rdf-schema#port',
+        #               'http://physiomeproject.org/workflow/1.0/rdf-schema#uses',
+        #               'http://physiomeproject.org/workflow/1.0/rdf-schema#file_location'))
+        # self.addPort(('http://physiomeproject.org/workflow/1.0/rdf-schema#port',
+        #               'http://physiomeproject.org/workflow/1.0/rdf-schema#uses',
+        #               'http://physiomeproject.org/workflow/1.0/rdf-schema#images'))
+        # self.addPort(('http://physiomeproject.org/workflow/1.0/rdf-schema#port',
+        #               'http://physiomeproject.org/workflow/1.0/rdf-schema#provides',
+        #               'http://physiomeproject.org/workflow/1.0/rdf-schema#2d_image_dimension'))
         # Port data:
         self._portData0 = None  # http://physiomeproject.org/workflow/1.0/rdf-schema#image_context_data
         self._portData1 = None  # http://physiomeproject.org/workflow/1.0/rdf-schema#file_location
@@ -197,21 +237,18 @@ class ImageContextDataMakerStep(WorkflowStepMountPoint):
         # Must put a note on the config that this doesn't apply to video feeds.
         frames_per_second = self._config['frames_per_second']
 
-        if self._portData2 is not None:
-            image_file_names = self._portData2.image_files()
-            image_dimensions, _ = _load_images(image_file_names, frames_per_second, region)
-            image_context_data = ImageContextData(context, frames_per_second, image_file_names, image_dimensions)
-        elif self._portData1 is not None:
-            image_dimensions = ReadVideo(context, self._portData1)
-            # image_frames, image_dim, frames_per_second = frameFromVideo(self._portData1)
-            # image_dimensions, _ = _get_images(image_frames, frames_per_second, region, image_dim)
-            # image_context_data = ImageContextData(context, frames_per_second, image_frames, image_dimensions)
-            image_context_data = ImageContextData(context, frames_per_second, image_dimensions)
-        else:
-            Exception('One of these ports should have data connected.')
+        # if self._portData2 is not None:
+        #     image_file_names = self._portData2.image_files()
+        #     image_dimensions, _ = _load_images(image_file_names, frames_per_second, region)
+        #     image_context_data = ImageContextData(context, image_file_names, image_dimensions, frames_per_second)
+        # elif self._portData1 is not None:
+        #     image_dimension, fps, totalframes = _getVideoInfo(self._portData1)
+        #     image_context_data = FrameContextData(context, self._portData1, fps, totalframes, image_dimension)
+        # else:
+        #     Exception('One of these ports should have data connected.')
 
-        self._portData0 = image_context_data
-        self._portData3 = image_dimensions
+        self._portData0 = context
+        # self._portData3 = image_dimension
         self._doneExecution()
 
     def setPortData(self, index, dataIn):
@@ -224,9 +261,9 @@ class ImageContextDataMakerStep(WorkflowStepMountPoint):
         :param dataIn: The data to set for the port at the given index.
         """
         if index == 1:
-            self._portData1 = dataIn  # http://physiomeproject.org/workflow/1.0/rdf-schema#file_location
+            self._portData1 = dataIn  # http://physiomeproject.org/workflow/1.0/rdf-schema#image_context_data
         elif index == 2:
-            self._portData2 = dataIn  # http://physiomeproject.org/workflow/1.0/rdf-schema#images
+            self._portData2 = dataIn  # http://physiomeproject.org/workflow/1.0/rdf-schema#file_location
 
     def getPortData(self, index):
         """
