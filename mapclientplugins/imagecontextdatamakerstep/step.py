@@ -35,40 +35,7 @@ def alphanum_key(s):
     return [try_int(c) for c in re.split('([0-9]+)', s)]
 
 
-def frameFromVideo(filename):
-    cap = cv2.VideoCapture(filename)
-    length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    imageList = list()
-    while not cap.isOpened():
-        cap = cv2.VideoCapture(filename)
-        cv2.waitKey(1000)
-        print("Wait for the header")
-    posFrame = cap.get(cv2.cv2.CAP_PROP_POS_FRAMES)
-    count = 1
-    while True:
-        flag, frameTemp = cap.read()
-        if flag and count != length:
-            frame = cv2.cvtColor(frameTemp, cv2.COLOR_BGR2RGB)
-            if count == 1:
-                imageDimension = [frame.shape[1], frame.shape[0]]
-            posFrame = cap.get(cv2.cv2.CAP_PROP_POS_FRAMES)
-            imArray = Image.fromarray(frame)
-            image = saveFrameInMemory(imArray)
-            imageList.append(image)
-        else:
-            break
-        count+=1
-    imageList.pop()
-    cap.release()
-    return imageList, imageDimension, fps
 
-
-def saveFrameInMemory(image):
-    with io.BytesIO() as output:
-        image.save(output, format="jpeg")
-        images = output.getvalue()
-    return images
 
 
 class ReadVideo(object):
@@ -115,7 +82,7 @@ class ReadVideo(object):
             self._imageField = fieldModule.createFieldImage()
             self._imageField.setSizeInPixels([width, height, 1])
             self._imageField.setPixelFormat(self._imageField.PIXEL_FORMAT_BGR)
-            self._imageField.setBuffer(capture2.tobytes())
+            self._imageField.setBuffer(capture2.tobytes()) # How does this imagefield get passed to the next step? Can this image field be read by zinc like createVolumeImageField?
             materialmodule = self._context.getMaterialmodule()
             self._material = materialmodule.createMaterial()
             self._material.setTextureField(1, self._imageField)
@@ -124,13 +91,13 @@ class ReadVideo(object):
 
 class ImageContextData(object):
 
-    # def __init__(self, context, frames_per_second, image_file_names, image_dimensions):
-    def __init__(self, context, frames_per_second, image_dimensions):
+    def __init__(self, context, frames_per_second, image_file_names, image_dimensions):
+    #def __init__(self, context, frames_per_second, image_dimensions):
         self._context = context
         self._shareable_widget = BaseSceneviewerWidget()
         self._shareable_widget.set_context(context)
         self._frames_per_second = frames_per_second
-        # self._image_file_names = image_file_names
+        self._image_file_names = image_file_names
         self._image_dimensions = image_dimensions
 
     def get_context(self):
@@ -142,11 +109,11 @@ class ImageContextData(object):
     def get_frames_per_second(self):
         return self._frames_per_second
 
-    # def get_frame_count(self):
-    #     return len(self._image_file_names)
-    #
-    # def get_image_file_names(self):
-    #     return self._image_file_names
+    def get_frame_count(self):
+        return len(self._image_file_names)
+
+    def get_image_file_names(self):
+        return self._image_file_names
 
     def get_image_dimensions(self):
         return self._image_dimensions
@@ -202,11 +169,13 @@ class ImageContextDataMakerStep(WorkflowStepMountPoint):
             image_dimensions, _ = _load_images(image_file_names, frames_per_second, region)
             image_context_data = ImageContextData(context, frames_per_second, image_file_names, image_dimensions)
         elif self._portData1 is not None:
-            image_dimensions = ReadVideo(context, self._portData1)
-            # image_frames, image_dim, frames_per_second = frameFromVideo(self._portData1)
+            # image_dimensions = ReadVideo(context, self._portData1)
+            image_frames, image_dimensions, frames_per_second = frameFromVideo(self._portData1)
+            creatZincFields(region, image_frames, frames_per_second, image_dimensions)
+
             # image_dimensions, _ = _get_images(image_frames, frames_per_second, region, image_dim)
             # image_context_data = ImageContextData(context, frames_per_second, image_frames, image_dimensions)
-            image_context_data = ImageContextData(context, frames_per_second, image_dimensions)
+            image_context_data = ImageContextData(context, frames_per_second, image_frames, image_dimensions)
         else:
             Exception('One of these ports should have data connected.')
 
@@ -318,6 +287,97 @@ def create_model(context):
     return region
 
 
+def frameFromVideo(filename):
+    cap = cv2.VideoCapture(filename)
+    length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    imageList = list()
+    while not cap.isOpened():
+        cap = cv2.VideoCapture(filename)
+        cv2.waitKey(1000)
+        print("Wait for the header")
+    posFrame = cap.get(cv2.CAP_PROP_POS_FRAMES)
+    count = 1
+    while True:
+        flag, frame = cap.read()
+        if flag and count != length:
+            if count == 1:
+                imageDimension = [frame.shape[1], frame.shape[0]]
+            bimage = frame.tobytes()
+            imageList.append(bimage)
+        else:
+            break
+        count+=1
+    imageList.pop()
+    cap.release()
+    return imageList, imageDimension, fps
+
+
+def captureVideo(self, filename):
+    if not self.cap:
+        self.cap = cv2.VideoCapture(filename)
+    self._fps = int(self.cap.get(cv2.CAP_PROP_FPS))
+    self._totalFrame = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    if self.cap.isOpened():
+        flag, capture = self.cap.read()
+        self.loadImage(capture)
+
+def saveFrameInMemory(image):
+    with io.BytesIO() as output:
+        image.save(output, format="jpeg")
+        images = output.getvalue()
+    return images
+
+def creatZincFields(region, images, frames_per_second, image_dimension):
+    image_dimensions = [-1, -1]
+    field_module = region.getFieldmodule()
+    frame_count = len(images)
+    # Assume all images have the same dimensions.
+    width, height = image_dimension
+    cache = field_module.createFieldcache()
+    scale_field = field_module.findFieldByName('scale')
+    scale_field.assignReal(cache, [width, height, 1.0])
+    duration = frame_count / frames_per_second
+    duration_field = field_module.findFieldByName('duration')
+    duration_field.assignReal(cache, duration)
+    image_dimensions = [width, height]
+    image_field = createVolumeImageFieldBuffer(field_module, images, image_dimension)
+    image_based_material = createMaterialUsingImageField(region, image_field)
+    image_based_material.setName('images') # this is where we will grab the material later
+    image_based_material.setManaged(True)
+    return image_dimensions, image_based_material
+
+def createVolumeImageFieldBuffer(fieldmodule, buffers, image_dims, field_name='volume_image'):
+    """
+    Create an image field using the given fieldmodule.  The image filename must exist and
+    be a known image type.
+
+    :param fieldmodule: The fieldmodule to create the field in.
+    :param buffer: image buffers
+    :param field_name: Optional name of the image field, defaults to 'volume_image'.
+    :return: The image field created.
+    """
+    image_field = fieldmodule.createFieldImage()
+    image_field.setName(field_name)
+    image_field.setFilterMode(image_field.FILTER_MODE_LINEAR)
+    image_field.setSizeInPixels([image_dims[0], image_dims[1], 1])
+    image_field.setPixelFormat(image_field.PIXEL_FORMAT_BGR)
+
+    # We are reading in a file from the local disk so our resource is a file.
+    for buffer in buffers:
+        image_field.setBuffer(buffer)
+
+    return image_field
+
+
+
+
+
+
+
+
+# ----- Old functions be below this point ----
+
 def _load_images(images, frames_per_second, region):
     field_module = region.getFieldmodule()
     frame_count = len(images)
@@ -359,6 +419,6 @@ def _get_images(images, frames_per_second, region, image_dimension):
             image_dimensions = [width, height]
     image_field = createVolumeImageField(field_module, images)
     image_based_material = createMaterialUsingImageField(region, image_field)
-    image_based_material.setName('images')
+    image_based_material.setName('images') # this is where we will grab the material later
     image_based_material.setManaged(True)
     return image_dimensions, image_based_material
